@@ -1,0 +1,24 @@
+{
+	"name": "task-queue",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"db": "docker compose up -d --wait",
+		"start": "npm run db && tsx src/server.ts",
+		"worker": "tsx src/worker.ts",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"fastify": "5.6.1",
+		"pg": "8.16.3",
+		"zod": "4.1.12"
+	},
+	"devDependencies": {
+		"@types/node": "24.7.2",
+		"@types/pg": "8.15.5",
+		"tsx": "4.20.6",
+		"typescript": "5.9.3",
+		"vitest": "3.2.4"
+	}
+}
