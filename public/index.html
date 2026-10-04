@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Task queue</title>
+	<style>
+		body { font: 14px system-ui, sans-serif; margin: 2rem; }
+		table { border-collapse: collapse; margin-bottom: 2rem; }
+		td, th { border: 1px solid #ccc; padding: 0.25rem 0.75rem; text-align: left; }
+		button { cursor: pointer; }
+	</style>
+</head>
+<body>
+	<h1>Queues</h1>
+	<table>
+		<thead><tr><th>Queue</th><th>Ready</th><th>In flight</th><th>DLQ</th></tr></thead>
+		<tbody id="queues"></tbody>
+	</table>
+	<section id="dlq" hidden>
+		<h2 id="dlq-title"></h2>
+		<table>
+			<thead><tr><th>Task</th><th>Type</th><th>Attempts</th><th>Error</th><th></th></tr></thead>
+			<tbody id="dlq-rows"></tbody>
+		</table>
+	</section>
+	<script>
+		const REFRESH_MS = 2000;
+		let selected = null;
+
+		function cell(text) {
+			const td = document.createElement("td");
+			td.textContent = text;
+			return td;
+		}
+
+		async function refreshQueues() {
+			const { queues } = await (await fetch("/queues")).json();
+			document.getElementById("queues").replaceChildren(...queues.map((queue) => {
+				const row = document.createElement("tr");
+				const open = document.createElement("button");
+				open.textContent = queue.name;
+				open.onclick = () => { selected = queue.name; refreshDlq(); };
+				const name = cell("");
+				name.append(open);
+				row.append(name, cell(queue.ready), cell(queue.inFlight), cell(queue.dlq));
+				return row;
+			}));
+		}
+
+		async function requeue(id) {
+			await fetch(`/tasks/${id}/requeue`, { method: "POST" });
+			refresh();
+		}
+
+		async function refreshDlq() {
+			if (selected === null) return;
+			const { items, total } = await (await fetch(`/queues/${selected}/dlq`)).json();
+			document.getElementById("dlq").hidden = false;
+			document.getElementById("dlq-title").textContent = `${selected}: ${total} in the DLQ`;
+			document.getElementById("dlq-rows").replaceChildren(...items.map((task) => {
+				const row = document.createElement("tr");
+				const button = document.createElement("button");
+				button.textContent = "Requeue";
+				button.onclick = () => requeue(task.id);
+				const action = cell("");
+				action.append(button);
+				row.append(cell(task.id), cell(task.type), cell(task.attempts), cell(task.lastError), action);
+				return row;
+			}));
+		}
+
+		function refresh() {
+			refreshQueues();
+			refreshDlq();
+		}
+
+		refresh();
+		setInterval(refresh, REFRESH_MS);
+	</script>
+</body>
+</html>
